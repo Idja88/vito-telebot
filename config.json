@@ -1,17 +1,17 @@
 {
     "share_point": 
         {
-            "user": "cad\\sp_setup",
-            "password": "Admin@dmin",
-            "url": "http://vitrotest",
-            "design": "http://vitrotest/Design",
-            "public": "http://vitrotest/Public",
-            "list": "Test",
-            "doc_library": "ProjLib"
+            "user": "",
+            "password": "",
+            "url": "",
+            "design": "",
+            "public": "",
+            "list": "",
+            "doc_library": ""
         },
     "tele_gram":
         {
-            "token": "1844543077:AAFZMrT0FKVtDGZUiMrIL2KyVGVhzbxGugg",
+            "token": "",
             "interval": 3,
             "timeout": 30,
             "hook": ""
