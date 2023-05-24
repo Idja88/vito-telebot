@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import re
 from requests_ntlm import HttpNtlmAuth
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,40 +28,47 @@ def getToken():
         digest_value = response['d']['GetContextWebInformation']['FormDigestValue']
         return digest_value
 
-def get_listitemid(chat):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=startswith(Chat,'{chat}')"
-        response = requests.get(list_url,verify=False,auth=AUTH,headers=HEADERS)
+def get_subscriber_id(chat):
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TeleChat eq '{chat}'"
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=HEADERS)
         response = json.loads(response.text)
         value = response["d"]["results"]
         return value[0]["Id"]
 
-def new_subscriber(title,chat):
+def new_subscriber(phone, chat):
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items"
         data = {
               '__metadata':  {'type': 'SP.Data.TestListItem' },
-              'Title': title,
-              'Chat': chat
+              'TelePhone': phone,
+              'TeleChat': chat
               }
-        new_headers = HEADERS
-        new_headers['X-RequestDigest']=getToken()
-        response = requests.post(list_url,auth=AUTH,headers=new_headers,data=json.dumps(data))
-        return json.loads(response.text)
-
+        new_headers = HEADERS.copy()
+        new_headers['X-RequestDigest'] = getToken()
+        try:
+               with requests.post(list_url, verify=False, auth=AUTH, headers=new_headers, data=json.dumps(data)) as response:
+                      response.raise_for_status()
+                      return json.loads(response.text)
+        except requests.exceptions.RequestException as e:
+                print(f"Error occurred: {e}")
+                return None
+        
 def check_phone(chat):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=startswith(Chat,'{chat}')"
-        response = requests.get(list_url,verify=False,auth=AUTH,headers=HEADERS)
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TeleChat eq '{chat}'"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
         response = json.loads(response.text)
         value = response["d"]["results"]
         return value
 
 def delete_subscriber(chat):
-        id = get_listitemid(chat)
+        id = get_subscriber_id(chat)
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/Items({id})"
-        new_headers = HEADERS
-        new_headers['X-Http-Method']='DELETE' #to delete
-        new_headers['If-Match']='*' #to delete
-        new_headers['X-RequestDigest']=getToken()
-        response = requests.post(list_url, auth=AUTH,headers=new_headers)
+        delete_headers = HEADERS.copy()
+        delete_headers['X-Http-Method'] = 'DELETE' #to delete
+        delete_headers['If-Match'] = '*' #to delete
+        delete_headers['X-RequestDigest'] = getToken()
+        response = requests.post(list_url, auth=AUTH, headers=delete_headers)
         return response
 
 def update_item(id,phone):
@@ -69,57 +77,99 @@ def update_item(id,phone):
               '__metadata':  {'type': 'SP.Data.TestListItem' },
               'Title': phone
               }
-        new_headers = HEADERS
-        new_headers['X-Http-Method']='MERGE' #to update
-        new_headers['If-Match']='*' #to update
-        response = requests.post(update_api, auth=AUTH,headers=new_headers,data=json.dumps(data))
+        upd_headers = HEADERS.copy()
+        upd_headers['X-Http-Method'] = 'MERGE' #to update
+        upd_headers['If-Match'] = '*' #to update
+        response = requests.post(update_api, auth=AUTH, headers=upd_headers, data=json.dumps(data))
         return json.loads(response.text)
 
 def get_last_token():
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/GetChanges"
-        data = { 'query': 
-                { '__metadata': { 'type': 'SP.ChangeQuery' }, 
+        data = {'query': 
+                {'__metadata': { 'type': 'SP.ChangeQuery' }, 
                 'Add': True, 
                 'Item': True
                 }
         }
-        new_headers = HEADERS
-        new_headers['X-RequestDigest']=getToken()
-        response = requests.post(list_url,verify=False,auth=AUTH,headers=HEADERS,data=json.dumps(data))
-        response = json.loads(response.text)
-        value = response['d']['results']
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.post(list_url, verify=False, auth=AUTH, headers=get_headers, data=json.dumps(data))
+        response_json = json.loads(response.text)
+        value = response_json['d']['results']
         return value[-1]["ChangeToken"]['StringValue']
 
 def get_changes():
         token = get_last_token()
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/GetChanges"
-        data = { 'query': 
-                { '__metadata': { 'type': 'SP.ChangeQuery' }, 
-                'Add': True, 
-                'Item': True,
-                "ChangeTokenStart": {"__metadata":{"type":"SP.ChangeToken"},"StringValue": token}
+        if token:
+                list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/GetChanges"
+                data = {
+                        'query': {
+                        '__metadata': {'type': 'SP.ChangeQuery'},
+                        'Add': True,
+                        'Item': True,
+                        "ChangeTokenStart": {
+                                "__metadata": {"type": "SP.ChangeToken"},
+                                "StringValue": token
+                        }
+                        }
                 }
-        }
-        new_headers = HEADERS
-        new_headers['X-RequestDigest']=getToken()
-        response = requests.post(list_url,verify=False,auth=AUTH,headers=HEADERS,data=json.dumps(data),timeout=120)
+                get_headers = HEADERS.copy()
+                get_headers['X-RequestDigest'] = getToken()
+                response = requests.post(list_url, verify=False, auth=AUTH, headers=get_headers, data=json.dumps(data))
+                response_json = json.loads(response.text)
+                results = response_json['d']['results']
+                if results:
+                        created_item = results[0]
+                        item_id = created_item['ItemId']
+                        if is_assignedto_subscriber(item_id):
+                                return print("yes")
+                        else:
+                                return print ('no')
+        else:
+                return None
+
+def get_task_assignedto_OrgID(task_id):
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/items({task_id})"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
         response = json.loads(response.text)
-        value = response['d']['results']
+        value = response["d"]['VitroWorkflowAssignedTo']
         return value
 
-def get_token_changes():
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/getlistitemchangessincetoken"
-        data = {'query': {'__metadata': {'type': 'SP.ChangeLogItemQuery'}, 'ChangeToken': '1;3;cdaf6bfd-6813-4fd3-bc9c-eaa6998e7544;637592758710830000;319924'}}
-        new_headers = HEADERS
-        new_headers['X-RequestDigest']=getToken()
-        response = requests.post(list_url,verify=False,auth=AUTH,headers=HEADERS,data=json.dumps(data),timeout=120)
-        #response = json.loads(response.text)
-        #value = response['d']['results']
-        return response.text
+def get_task_assignedto_FizID(task_id):
+        org_id = get_task_assignedto_OrgID(task_id)
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Организационно-штатная структура')/items({org_id})"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
+        response = json.loads(response.text)
+        value = response["d"]['VitroOrgPerson']
+        return value
 
-#print(get_last_token())
-#print(get_changes())
-#print(get_token_changes())
+def get_task_assignedto_Phone(task_id):
+        fiz_id = get_task_assignedto_FizID(task_id)
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Физические лица')/items({fiz_id})"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
+        response = json.loads(response.text)
+        value = response["d"]['VitroOrgPhone']  # Проверка наличия значения
+        return value if value else None
 
-while True:
-       print(get_changes())
+def is_assignedto_subscriber(task_id):
+        phone = get_task_assignedto_Phone(task_id)
+        if not phone:  # Проверка на пустое значение
+                return False
+        phone = re.sub('[^A-Za-z0-9]+', '', phone)
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TelePhone eq '{phone}'"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = getToken()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
+        response = json.loads(response.text)
+        value = response["d"]["results"]
+        return bool(value)
+        # if value:
+        #         return True
+        # else:
+        #         return False

@@ -48,18 +48,24 @@ def botactions():
         chat = str(message.chat.id)
         phone = str(message.contact.phone_number)
         phone = re.sub('[^A-Za-z0-9]+', '', phone)
-        if not sp.check_phone(chat):
-            sp.new_subscriber(phone,chat)
-            bot.reply_to(message, 'Спасибо за подписку')
-        else:
-            bot.reply_to(message, 'Вы уже подписаны')
+        try:
+            if not sp.check_phone(chat):
+                sp.new_subscriber(phone,chat)
+                bot.reply_to(message, 'Спасибо за подписку')
+            else:
+                bot.reply_to(message, 'Вы уже подписаны')
+        except:
+            print("Error")
 
     @bot.message_handler(func=lambda message: message.text == 'Отписаться')
     def unsubscribe(message):
         chat = str(message.chat.id)
         try:
-            sp.delete_subscriber(chat)
-            bot.send_message(chat,"Вы отписались от уведомлений")
+            if not sp.check_phone(chat):
+                bot.reply_to(message, 'Вы ещё не подписаны')
+            else:
+                sp.delete_subscriber(chat)
+                bot.reply_to(message, 'Вы отписались от уведомлений')
         except:
             print("Error")
 
@@ -95,6 +101,7 @@ polling_thread.start()
 if __name__ == "__main__":
     while True:
         try:
-            sleep(120)
+            sp.get_changes()
+            #sleep(120)
         except KeyboardInterrupt:
             break
