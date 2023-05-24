@@ -169,7 +169,3 @@ def is_assignedto_subscriber(task_id):
         response = json.loads(response.text)
         value = response["d"]["results"]
         return bool(value)
-        # if value:
-        #         return True
-        # else:
-        #         return False
