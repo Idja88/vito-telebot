@@ -125,11 +125,12 @@ def get_changes():
                 return None
 
 def get_task_assignedto_OrgID(task_id, chat_data):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/items({task_id})?$select=VitroWorkflowAssignedTo"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/items({task_id})"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
         response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
         response = json.loads(response.text)
+        chat_data['TaskId'] = response["d"]["Id"]
         value = response["d"]['VitroWorkflowAssignedTo']
         return value
 
