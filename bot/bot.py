@@ -26,8 +26,6 @@ btn2 = types.KeyboardButton('Отписаться')
 KeyBoard.row(btn1, btn2)
 
 def botactions():
-    #Set all your bot handlers inside this function
-    #If bot is used as a global variable, remove bot as an input param
     @bot.message_handler(commands=['start'])
     def start_command(message):
         bot.send_message(
@@ -49,8 +47,8 @@ def botactions():
         phone = str(message.contact.phone_number)
         phone = re.sub('[^A-Za-z0-9]+', '', phone)
         try:
-            if not sp.check_phone(chat):
-                sp.new_subscriber(phone,chat)
+            if not sp.check_subscriber(chat):
+                sp.add_subscriber(phone, chat)
                 bot.reply_to(message, 'Спасибо за подписку')
             else:
                 bot.reply_to(message, 'Вы уже подписаны')
@@ -61,7 +59,7 @@ def botactions():
     def unsubscribe(message):
         chat = str(message.chat.id)
         try:
-            if not sp.check_phone(chat):
+            if not sp.check_subscriber(chat):
                 bot.reply_to(message, 'Вы ещё не подписаны')
             else:
                 sp.delete_subscriber(chat)
@@ -69,39 +67,36 @@ def botactions():
         except:
             print("Error")
 
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    print(f"Получено новое сообщение от {message.chat.username}: {message.text}")
-    print(message)
-    #bot.reply_to(message, message.text)
-
 def bot_polling():
-    #global bot #Keep the bot object as global variable if needed
     global bot
     print("Starting bot polling now")
     while True:
         try:
             print("New bot instance started")
-            botactions() #If bot is used as a global variable, remove bot as an input param
-            bot.polling(none_stop=True, interval=BOT_INTERVAL, timeout=BOT_TIMEOUT)
-        except Exception as ex: #Error in polling
+            botactions()
+            bot.infinity_polling()
+        except Exception as ex:
             print("Bot polling failed, restarting in {}sec. Error:\n{}".format(BOT_TIMEOUT, ex))
             bot.stop_polling()
             sleep(BOT_TIMEOUT)
-        else: #Clean exit
+        else:
             bot.stop_polling()
             print("Bot polling loop finished")
-            break #End loop
+            break
 
 polling_thread = threading.Thread(target=bot_polling)
 polling_thread.daemon = True
 polling_thread.start()
 
-#Keep main program running while bot runs threaded
+chat_data = {}
+
 if __name__ == "__main__":
     while True:
         try:
-            sp.get_changes()
-            #sleep(120)
+            if sp.is_assignedto_subscriber(sp.get_changes(), chat_data) is True:
+                chat_id = chat_data['TeleChat']
+                task_id = chat_data['TaskId']
+                bot.send_message(chat_id, text = f"новая задача {task_id}")
+                #sleep(120)
         except KeyboardInterrupt:
             break
