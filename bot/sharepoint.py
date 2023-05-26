@@ -14,8 +14,6 @@ with open(config_path) as config_file:
 USERNAME = spconfig['user']
 PASSWORD = spconfig['password']
 SHAREPOINT_URL = spconfig['url']
-SHAREPOINT_DESIGN = spconfig['design']
-SHAREPOINT_PUBLIC = spconfig['public']
 SHAREPOINT_LIST = spconfig['list']
 AUTH = HttpNtlmAuth(USERNAME,PASSWORD)
 HEADERS = {'Accept': 'application/json;odata=verbose',"content-type": "application/json;odata=verbose"}
@@ -80,10 +78,11 @@ def delete_subscriber(chat):
         response = requests.post(list_url, auth=AUTH, headers=delete_headers)
         return response
 
-def update_subscriber(id,phone):
+def update_subscriber(id, phone):
         update_api = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/Items({id})"
+        entity = get_list_entity()
         data = {
-              '__metadata':  {'type': 'SP.Data.TestListItem' },
+              '__metadata':  {'type': entity },
               'Title': phone
               }
         upd_headers = HEADERS.copy()
