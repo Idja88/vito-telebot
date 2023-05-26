@@ -34,10 +34,20 @@ def get_subscriber_id(chat):
         value = response["d"]["results"]
         return value[0]["Id"]
 
+def get_list_entity():
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')?$select=ListItemEntityTypeFullName"
+        get_headers = HEADERS.copy()
+        get_headers['X-RequestDigest'] = get_token()
+        response = requests.get(list_url, verify=False, auth=AUTH, headers=get_headers)
+        response = json.loads(response.text)
+        value = response["d"]["ListItemEntityTypeFullName"]
+        return value
+
 def add_subscriber(phone, chat):
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items"
+        entity = get_list_entity()
         data = {
-              '__metadata':  {'type': 'SP.Data.TestListItem' },
+              '__metadata':  {'type': entity },
               'TelePhone': phone,
               'TeleChat': chat
               }
