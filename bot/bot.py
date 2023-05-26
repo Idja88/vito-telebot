@@ -1,13 +1,11 @@
 import sharepoint as sp
 import threading
-import requests
 import telebot
 import json
 import os
 import re
 from time import sleep
 from telebot import types
-from requests_ntlm import HttpNtlmAuth
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 config_path = '\\'.join([ROOT_DIR, 'config.json'])
@@ -21,7 +19,7 @@ BOT_INTERVAL = tconfig['interval']
 BOT_TIMEOUT = tconfig['timeout']
 
 KeyBoard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
-btn1 = types.KeyboardButton('Подписаться',request_contact=True)
+btn1 = types.KeyboardButton('Подписаться', request_contact=True)
 btn2 = types.KeyboardButton('Отписаться')
 KeyBoard.row(btn1, btn2)
 
