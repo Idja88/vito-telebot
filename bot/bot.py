@@ -12,7 +12,7 @@ config_path = '\\'.join([ROOT_DIR, 'config.json'])
 
 with open(config_path) as config_file:
     config = json.load(config_file)
-    tconfig = config['tele_gram']
+    tconfig = config['telegram']
 
 bot = telebot.TeleBot(tconfig['token'])
 BOT_INTERVAL = tconfig['interval']
@@ -44,26 +44,24 @@ def botactions():
         chat = str(message.chat.id)
         phone = str(message.contact.phone_number)
         phone = re.sub('[^A-Za-z0-9]+', '', phone)
-        try:
-            if not sp.check_subscriber(chat):
+        if not sp.check_subscriber(chat):
+            try:
                 sp.add_subscriber(phone, chat)
+            finally:
                 bot.reply_to(message, 'Спасибо за подписку')
-            else:
-                bot.reply_to(message, 'Вы уже подписаны')
-        except:
-            print("Error")
+        else:
+            bot.reply_to(message, 'Вы уже подписаны')
 
     @bot.message_handler(func=lambda message: message.text == 'Отписаться')
     def unsubscribe(message):
         chat = str(message.chat.id)
-        try:
-            if not sp.check_subscriber(chat):
-                bot.reply_to(message, 'Вы ещё не подписаны')
-            else:
+        if not sp.check_subscriber(chat):
+            bot.reply_to(message, 'Вы ещё не подписаны')
+        else:
+            try:
                 sp.delete_subscriber(chat)
+            finally:
                 bot.reply_to(message, 'Вы отписались от уведомлений')
-        except:
-            print("Error")
 
 def bot_polling():
     global bot
@@ -95,6 +93,5 @@ if __name__ == "__main__":
                 chat_id = chat_data['TeleChat']
                 task_id = chat_data['TaskId']
                 bot.send_message(chat_id, text = f"новая задача {task_id}")
-                #sleep(120)
         except KeyboardInterrupt:
             break

@@ -5,17 +5,19 @@ import re
 from requests_ntlm import HttpNtlmAuth
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-config_path = '\\'.join([ROOT_DIR, 'config.json'])
+config_path = os.path.join(ROOT_DIR, 'config.json')
 
 with open(config_path) as config_file:
     config = json.load(config_file)
-    spconfig = config['share_point']
+    spconfig = config['sharepoint']
 
 USERNAME = spconfig['user']
 PASSWORD = spconfig['password']
 SHAREPOINT_URL = spconfig['url']
-SHAREPOINT_LIST = spconfig['list']
-AUTH = HttpNtlmAuth(USERNAME,PASSWORD)
+SUBSCRIBER_LIST = spconfig['subscriber_list']
+PHONE_FIELD = spconfig['phone_field']
+CHAT_FIELD = spconfig['chat_field']
+AUTH = HttpNtlmAuth(USERNAME, PASSWORD)
 HEADERS = {'Accept': 'application/json;odata=verbose',"content-type": "application/json;odata=verbose"}
 
 def get_token():
@@ -31,7 +33,7 @@ def get_token():
                 return None
 
 def get_subscriber_id(chat):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TeleChat eq '{chat}'"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/items?$filter={CHAT_FIELD} eq '{chat}'"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
         try:
@@ -45,7 +47,7 @@ def get_subscriber_id(chat):
                 return None
         
 def get_list_entity():
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')?$select=ListItemEntityTypeFullName"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')?$select=ListItemEntityTypeFullName"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
         try:
@@ -59,7 +61,7 @@ def get_list_entity():
                 return None
 
 def add_subscriber(phone, chat):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/items"
         entity = get_list_entity()
         data = {
               '__metadata':  {'type': entity },
@@ -78,7 +80,7 @@ def add_subscriber(phone, chat):
                 return None
         
 def check_subscriber(chat):
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TeleChat eq '{chat}'"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/items?$filter={CHAT_FIELD} eq '{chat}'"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
         try:
@@ -93,7 +95,7 @@ def check_subscriber(chat):
 
 def delete_subscriber(chat):
         id = get_subscriber_id(chat)
-        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/Items({id})"
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/Items({id})"
         delete_headers = HEADERS.copy()
         delete_headers['X-Http-Method'] = 'DELETE'
         delete_headers['If-Match'] = '*'
@@ -107,8 +109,8 @@ def delete_subscriber(chat):
                 print(f"Error occurred: {e}")
                 return None
 
-def update_subscriber(id,phone):
-        update_api = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/Items({id})"
+def update_subscriber(id, phone):
+        list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/Items({id})"
         entity = get_list_entity()
         data = {
               '__metadata':  {'type': entity},
@@ -118,7 +120,7 @@ def update_subscriber(id,phone):
         upd_headers['X-Http-Method'] = 'MERGE'
         upd_headers['If-Match'] = '*'
         try:
-                with requests.post(update_api, auth=AUTH, headers=upd_headers, data=json.dumps(data)) as response:
+                with requests.post(list_url, verify=False, auth=AUTH, headers=upd_headers, data=json.dumps(data)) as response:
                         response.raise_for_status()
                         response_json = json.loads(response.text)
                         return response_json
@@ -178,7 +180,7 @@ def get_changes():
         else:
                 return None
 
-def get_task_assignedto_OrgID(task_id, chat_data):
+def get_task_assignedto_orgid(task_id, chat_data):
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Задачи рабочих процессов (Vitro)')/items({task_id})"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
@@ -193,8 +195,8 @@ def get_task_assignedto_OrgID(task_id, chat_data):
                 print(f"Error occurred: {e}")
                 return None
 
-def get_task_assignedto_FizID(task_id, chat_data):
-        org_id = get_task_assignedto_OrgID(task_id, chat_data)
+def get_task_assignedto_fizid(task_id, chat_data):
+        org_id = get_task_assignedto_orgid(task_id, chat_data)
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Организационно-штатная структура')/items({org_id})?$select=VitroOrgPerson"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
@@ -208,8 +210,8 @@ def get_task_assignedto_FizID(task_id, chat_data):
                 print(f"Error occurred: {e}")
                 return None
 
-def get_task_assignedto_Phone(task_id, chat_data):
-        fiz_id = get_task_assignedto_FizID(task_id, chat_data)
+def get_task_assignedto_phone(task_id, chat_data):
+        fiz_id = get_task_assignedto_fizid(task_id, chat_data)
         list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('Физические лица')/items({fiz_id})?$select=VitroOrgPhone"
         get_headers = HEADERS.copy()
         get_headers['X-RequestDigest'] = get_token()
@@ -226,12 +228,12 @@ def get_task_assignedto_Phone(task_id, chat_data):
 def is_assignedto_subscriber(task_id, chat_data):
         if task_id is None:
                 return False
-        phone = get_task_assignedto_Phone(task_id, chat_data)
+        phone = get_task_assignedto_phone(task_id, chat_data)
         if phone is None: 
                 return False
         else:
                 phone = re.sub('[^A-Za-z0-9]+', '', phone)
-                list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SHAREPOINT_LIST}')/items?$filter=TelePhone eq '{phone}'"
+                list_url = f"{SHAREPOINT_URL}/_api/Web/Lists/GetByTitle('{SUBSCRIBER_LIST}')/items?$filter={PHONE_FIELD} eq '{phone}'"
                 get_headers = HEADERS.copy()
                 get_headers['X-RequestDigest'] = get_token()
                 try:
