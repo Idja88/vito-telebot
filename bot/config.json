@@ -1,12 +1,14 @@
 {
-    "share_point": 
+    "sharepoint": 
         {
             "user": "",
             "password": "",
             "url": "",
-            "list": ""
+            "subscriber_list": "",
+            "phone_field": "",
+            "chat_field": ""
         },
-    "tele_gram":
+    "telegram":
         {
             "token": "",
             "interval": 3,
