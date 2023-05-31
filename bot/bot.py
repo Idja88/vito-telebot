@@ -84,7 +84,7 @@ polling_thread = threading.Thread(target=bot_polling)
 polling_thread.daemon = True
 polling_thread.start()
 
-chat_data = {}
+chat_data = dict()
 
 if __name__ == "__main__":
     while True:
